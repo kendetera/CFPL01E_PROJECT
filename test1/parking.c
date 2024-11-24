@@ -41,7 +41,7 @@ void parkVehicle(ParkingSpot parkingLot[], int totalSpots, sqlite3* db)
             printf("Vehicle parked at spot %d.\n", parkingLot[i].spotId);
 
             // Insert parking history into the database
-            insertParkingHistory(db, parkingLot[i].vehicle.vehicleNumber, parkingLot[i].spotId, parkingLot[i].vehicle.entryTime, 0, 0.0);
+            insertParkingHistory(db, parkingLot[i].vehicle.vehicleNumber, parkingLot[i].spotId, parkingLot[i].vehicle.entryTime);
             break;
         }
     }
@@ -71,7 +71,7 @@ void removeVehicle(ParkingSpot parkingLot[], int totalSpots, sqlite3* db)
             double fee = calculateParkingFee(parkingLot[i].vehicle.entryTime, parkingLot[i].vehicle.exitTime);
 
             // Update parking history in the database
-            insertParkingHistory(db, parkingLot[i].vehicle.vehicleNumber, parkingLot[i].spotId, parkingLot[i].vehicle.entryTime, parkingLot[i].vehicle.exitTime, fee);
+            updateParkingHistory(db, parkingLot[i].vehicle.vehicleNumber, parkingLot[i].vehicle.exitTime, fee);
 
             printf("Vehicle with license plate %s exited from spot %d.\n", licensePlate, parkingLot[i].spotId);
             printf("Parking duration: %.2f hours. Fee: $%.2f\n", difftime(parkingLot[i].vehicle.exitTime, parkingLot[i].vehicle.entryTime) / 3600.0, fee);
@@ -87,6 +87,7 @@ void removeVehicle(ParkingSpot parkingLot[], int totalSpots, sqlite3* db)
         printf("Vehicle with license plate %s not found.\n", licensePlate);
     }
 }
+
 
 // Function to calculate parking fee
 double calculateParkingFee(time_t entryTime, time_t exitTime)
@@ -127,33 +128,82 @@ void createTable(sqlite3* db)
     }
 }
 
-// Function to insert parking history into the database
-void insertParkingHistory(sqlite3* db, const char* vehicleNumber, int spotNumber, time_t entryTime, time_t exitTime, double parkingFee)
+// Function to insert a new parking history record into the database
+void insertParkingHistory(sqlite3* db, const char* vehicleNumber, int spotNumber, time_t entryTime)
 {
     char* errMsg = 0;
-    char sql[256];
     char entryTimeStr[20];
-    char exitTimeStr[20];
+    sqlite3_stmt* stmt = NULL;
+    int rc;
 
-    // Convert Unix timestamps to human-readable format
+    // Convert Unix timestamp to human-readable format
     strftime(entryTimeStr, sizeof(entryTimeStr), "%Y-%m-%d %H:%M:%S", localtime(&entryTime));
-    strftime(exitTimeStr, sizeof(exitTimeStr), "%Y-%m-%d %H:%M:%S", localtime(&exitTime));
 
-    snprintf(sql, sizeof(sql), "INSERT INTO ParkingHistory (VehicleNumber, SpotNumber, EntryTime, ExitTime, ParkingFee) "
-        "VALUES ('%s', %d, '%s', '%s', %.2f);",
-        vehicleNumber, spotNumber, entryTimeStr, exitTimeStr, parkingFee);
-
-    int rc = sqlite3_exec(db, sql, 0, 0, &errMsg);
+    // Insert a new record
+    const char* insertQuery = "INSERT INTO ParkingHistory (VehicleNumber, SpotNumber, EntryTime, ExitTime, ParkingFee) VALUES (?, ?, ?, NULL, 0.0);";
+    rc = sqlite3_prepare_v2(db, insertQuery, -1, &stmt, 0);
     if (rc != SQLITE_OK)
     {
-        fprintf(stderr, "SQL error: %s\n", errMsg);
-        sqlite3_free(errMsg);
+        fprintf(stderr, "Failed to prepare INSERT query: %s\n", sqlite3_errmsg(db));
+        return;
+    }
+
+    sqlite3_bind_text(stmt, 1, vehicleNumber, -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 2, spotNumber);
+    sqlite3_bind_text(stmt, 3, entryTimeStr, -1, SQLITE_STATIC);
+
+    // Execute the prepared statement
+    rc = sqlite3_step(stmt);
+    if (rc != SQLITE_DONE)
+    {
+        fprintf(stderr, "SQL execution error: %s\n", sqlite3_errmsg(db));
     }
     else
     {
         fprintf(stdout, "Record inserted successfully\n");
     }
+
+    sqlite3_finalize(stmt);
 }
+
+// Function to update the exit time and parking fee of an existing parking history record
+void updateParkingHistory(sqlite3* db, const char* vehicleNumber, time_t exitTime, double parkingFee)
+{
+    char* errMsg = 0;
+    char exitTimeStr[20];
+    sqlite3_stmt* stmt = NULL;
+    int rc;
+
+    // Convert Unix timestamp to human-readable format
+    strftime(exitTimeStr, sizeof(exitTimeStr), "%Y-%m-%d %H:%M:%S", localtime(&exitTime));
+
+    // Update the existing record
+    const char* updateQuery = "UPDATE ParkingHistory SET ExitTime = ?, ParkingFee = ? WHERE VehicleNumber = ? AND ExitTime IS NULL;";
+    rc = sqlite3_prepare_v2(db, updateQuery, -1, &stmt, 0);
+    if (rc != SQLITE_OK)
+    {
+        fprintf(stderr, "Failed to prepare UPDATE query: %s\n", sqlite3_errmsg(db));
+        return;
+    }
+
+    sqlite3_bind_text(stmt, 1, exitTimeStr, -1, SQLITE_STATIC);
+    sqlite3_bind_double(stmt, 2, parkingFee);
+    sqlite3_bind_text(stmt, 3, vehicleNumber, -1, SQLITE_STATIC);
+
+    // Execute the prepared statement
+    rc = sqlite3_step(stmt);
+    if (rc != SQLITE_DONE)
+    {
+        fprintf(stderr, "SQL execution error: %s\n", sqlite3_errmsg(db));
+    }
+    else
+    {
+        fprintf(stdout, "Record updated successfully\n");
+    }
+
+    sqlite3_finalize(stmt);
+}
+
 
 // Function to remove a specific parking history by vehicle number
 void removeParkingHistory(sqlite3* db, const char* vehicleNumber)
@@ -196,7 +246,7 @@ void removeAllParkingHistory(sqlite3* db)
 void displayParkingRates()
 {
     printf("Parking Rates:\n");
-    printf("Fixed Rate: $%d\n", FIXED_PARKING_RATE);
-    printf("Overnight Fee: $%d\n", OVERNIGHT_FEE);
-    printf("Lost Ticket Fee: $%d\n", LOST_TICKET_FEE);
+    printf("Fixed Rate: P%d\n", FIXED_PARKING_RATE);
+    printf("Overnight Fee: P%d\n", OVERNIGHT_FEE);
+    printf("Lost Ticket Fee: %d\n", LOST_TICKET_FEE);
 }
