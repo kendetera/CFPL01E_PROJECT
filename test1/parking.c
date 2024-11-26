@@ -38,6 +38,7 @@ void parkVehicle(ParkingSpot parkingLot[], int totalSpots, sqlite3* db)
             parkingLot[i].vehicle.entryTime = time(NULL);
             parkingLot[i].vehicle.isParked = 1;
             spotFound = 1;
+			system("clear");
             printf("Vehicle parked at spot %d.\n", parkingLot[i].spotId);
 
             // Insert parking history into the database
@@ -48,6 +49,7 @@ void parkVehicle(ParkingSpot parkingLot[], int totalSpots, sqlite3* db)
 
     if (!spotFound)
     {
+		system("clear");
         printf("No free parking spots available.\n");
     }
 }
@@ -83,7 +85,8 @@ void removeVehicle(ParkingSpot parkingLot[], int totalSpots, sqlite3* db)
     }
 
     if (!found)
-    {
+    {   
+		system("clear");
         printf("Vehicle with license plate %s not found.\n", licensePlate);
     }
 }
@@ -198,6 +201,7 @@ void updateParkingHistory(sqlite3* db, const char* vehicleNumber, time_t exitTim
     }
     else
     {
+        system("clear");
         fprintf(stdout, "Record updated successfully\n");
     }
 
