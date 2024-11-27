@@ -44,6 +44,9 @@ int main()
             displayParkingRates();
             break;
         case 4:
+            displayParkingReport(db);
+            break;
+        case 5:
         {
             char vehicleNumber[15];
             printf("Enter vehicle number to remove history: ");
@@ -51,10 +54,10 @@ int main()
             removeParkingHistory(db, vehicleNumber);
         }
         break;
-        case 5:
+        case 6:
             removeAllParkingHistory(db);
             break;
-        case 6:
+        case 7:
             sqlite3_close(db);
             exit(0);
         default:

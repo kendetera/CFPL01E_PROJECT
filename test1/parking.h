@@ -2,17 +2,20 @@
 #pragma once
 #ifndef PARKING_H
 #define PARKING_H
+#define VEHICLE_NUMBER_SIZE 15 // Define buffer sizes
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <sqlite3.h>
+#include "fort.h"
 
 #define MAX_PARKING_SPOTS 10 // Maximum parking spots available
-#define FIXED_PARKING_RATE 30 // Fixed parking rate
+#define FIXED_PARKING_RATE 20 // Fixed parking rate
 #define OVERNIGHT_FEE 200 // Overnight parking fee
 #define LOST_TICKET_FEE 300 // Lost ticket fee
+
 
 // Structure to store information about vehicles
 typedef struct {
@@ -21,6 +24,7 @@ typedef struct {
     time_t entryTime; // Entry time
     time_t exitTime; // Exit time
     int isParked; // 1 if parked, 0 if not
+    int ticketNumber; // Ticket number
 } Vehicle;
 
 // Structure to store information about parking spots
@@ -37,6 +41,7 @@ void parkVehicle(ParkingSpot parkingLot[], int totalSpots, sqlite3* db);
 void removeVehicle(ParkingSpot parkingLot[], int totalSpots, sqlite3* db);
 double calculateParkingFee(time_t entryTime, time_t exitTime);
 void displayParkingRates();
+void displayParkingReport(sqlite3* db);
 void insertParkingHistory(sqlite3* db, const char* vehicleNumber, int spotNumber, time_t entryTime);
 void updateParkingHistory(sqlite3* db, const char* vehicleNumber, time_t exitTime, double parkingFee);
 void removeParkingHistory(sqlite3* db, const char* vehicleNumber);
